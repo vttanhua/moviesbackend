@@ -1,7 +1,12 @@
 package com.example.service;
 
+import com.example.dto.MovieInfoDto;
+import com.example.dto.MovieSearchResponseDto;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheConfig;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -9,11 +14,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 
 @Slf4j
 @Service
+//@CacheConfig(cacheNames = "movieSearchCache,movieInfoCache")
 public class MoviesService {
 
     @Value("${movie.search.baseUrl}")
@@ -26,6 +33,21 @@ public class MoviesService {
 
     public MoviesService(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
+    }
+
+    @Cacheable(cacheNames = "movieSearchCache")
+    public MovieSearchResponseDto searchMoviesDto(String searchKeyword){
+        ResponseEntity<String>  response = this.searchMovies(searchKeyword);
+        ObjectMapper objectMapper = new ObjectMapper();
+        MovieSearchResponseDto responseData = null;
+        try {
+            log.debug("response getbody {}:",response.getBody());
+            responseData = objectMapper.readValue(response.getBody(), MovieSearchResponseDto.class);
+            responseData.setSearchKeyword(searchKeyword);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return responseData;
     }
 
     public ResponseEntity<String> searchMovies(String searchKeyword) {
@@ -44,6 +66,21 @@ public class MoviesService {
             log.error("Error while searching movies with keyword {}. Status was {}", searchKeyword, response.getStatusCode());
         }
         return response;
+    }
+
+    @Cacheable(cacheNames = "movieInfoCache")
+    public MovieInfoDto getMovieInfoDto(String imdbID){
+        ResponseEntity<String>  response = this.getMovieInfo(imdbID);
+        ObjectMapper objectMapper = new ObjectMapper();
+        MovieInfoDto responseData = null;
+        try {
+            log.debug("response getbody {}:",response.getBody());
+            responseData = objectMapper.readValue(response.getBody(), MovieInfoDto.class);
+            responseData.setMovieInfoForImdbId(imdbID);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return responseData;
     }
 
     public ResponseEntity<String> getMovieInfo(String imdbID) {
